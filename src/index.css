@@ -1,3 +1,36 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Material UI handles base resets via <CssBaseline />.
+  You can use this file for global font settings or 
+  any specific custom animations.
+*/
+
+:root {
+    --canva-bg1: #f0f2f5;
+    --canva-bg2: #ffffff;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Ensure the font matches your MUI theme */
+    font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+}
+
+/* Optional: Custom scrollbar to match the clean UI */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #00c4cc33;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #00c4cc66;
+}
