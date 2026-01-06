@@ -59,18 +59,20 @@ Ensure you have **Node.js** installed on your machine.
 ### Installation Steps
 
 1. **Clone the repository:**
-   ```bash
+   
    git clone [https://github.com/Chanii2024/fleva-platform.git](https://github.com/Chanii2024/fleva-platform.git)
 
 
 2. **Go to the project root directory:**
-   ```bash
+   
 cd fleva-platform-website
 
+
 3. **Install dependencies:**
-   ```bash
+   
 npm install
 
+
 4. **Launch the application:**
-   ```bash
+   
 npm start
