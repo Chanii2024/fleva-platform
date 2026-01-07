@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
   Box,
   Typography,
@@ -12,6 +12,7 @@ import {
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
+  const navigate = useNavigate();
 
   function updateField(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -126,6 +127,7 @@ export default function Login() {
 
           {/* LOGIN BUTTON */}
           <Button
+            onClick={() => navigate('/posts/create')}
             fullWidth
             variant="contained"
             sx={{
