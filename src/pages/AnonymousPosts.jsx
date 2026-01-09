@@ -127,7 +127,7 @@ export default function AnonymousPosts() {
           <Button
             variant="contained"
             component={RouterLink}
-            to="/posts/new"
+            to="/posts/create"
             sx={{
               bgcolor: '#00c4cc',
               fontWeight: 700,
@@ -166,7 +166,20 @@ export default function AnonymousPosts() {
               }}
             >
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: '#1f2937', fontSize: '1.1rem' }}>{post.title}</Typography>
+                <Typography
+                  variant="h6"
+                  component={RouterLink}
+                  to={`/posts/${post.id}`}
+                  sx={{
+                    fontWeight: 700,
+                    color: '#1f2937',
+                    fontSize: '1.1rem',
+                    textDecoration: 'none',
+                    '&:hover': { color: '#00c4cc' }
+                  }}
+                >
+                  {post.title}
+                </Typography>
                 <Chip
                   label={post.tag}
                   size="small"
@@ -185,18 +198,37 @@ export default function AnonymousPosts() {
                 <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 500 }}>
                   {post.replies} replies · {post.time}
                 </Typography>
-                <Chip
-                  label={post.status}
-                  variant="outlined"
-                  size="small"
-                  sx={{
-                    ...getStatusStyles(post.status),
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    borderRadius: '8px',
-                    borderWidth: '1px'
-                  }}
-                />
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  <Chip
+                    label={post.status}
+                    variant="outlined"
+                    size="small"
+                    sx={{
+                      ...getStatusStyles(post.status),
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      borderWidth: '1px'
+                    }}
+                  />
+                  <Button
+                    component={RouterLink}
+                    to="/posts/create"
+                    state={{ post }}
+                    size="small"
+                    sx={{ textTransform: 'none', fontWeight: 700, ml: 1 }}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    component={RouterLink}
+                    to={`/posts/${post.id}`}
+                    size="small"
+                    sx={{ textTransform: 'none', fontWeight: 700, ml: 0 }}
+                  >
+                    View
+                  </Button>
+                </Box>
               </Box>
             </Paper>
           ))}

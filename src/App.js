@@ -16,6 +16,7 @@ import SkillExchange from "./pages/SkillExchange";
 import Notes from "./pages/Notes";
 import Ideas from "./pages/Ideas";
 import CreatePost from "./pages/CreatePost";
+import PostDetails from "./pages/PostDetails";
 
 const theme = createTheme({
   palette: {
@@ -37,6 +38,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/posts" element={<AnonymousPosts />} />
             <Route path="/posts/create" element={<CreatePost />} />
+            <Route path="/posts/:id" element={<PostDetails />} />
             <Route path="/rooms" element={<DiscussionRooms />} />
             <Route path="/problems" element={<ProblemHub />} />
             <Route path="/skills" element={<SkillExchange />} />

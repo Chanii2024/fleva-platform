@@ -1,24 +1,39 @@
+import axios from 'axios';
 import API_BASE, { POSTS_ENDPOINT } from './config';
 
-// submitPost: tries to POST to a backend endpoint, falls back to localStorage
-export async function submitPost(post) {
-  const url = POSTS_ENDPOINT;
+// submitPost: creates a post and optionally uploads an image
+// Requires userId header for backend authentication
+export async function submitPost(post, userId, imageFile = null) {
   try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(post),
+    // Step 1: Create the post
+    const response = await axios.post(POSTS_ENDPOINT, {
+      title: post.title,
+      content: post.content,
+      community: post.community,
+      tags: post.tags || [],
+      anonymous: post.anonymous || false
+    }, {
+      headers: {
+        'userId': userId
+      }
     });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`API error ${res.status}: ${text}`);
+    
+    const createdPost = response.data;
+    
+    // Step 2: Upload image if provided
+    if (imageFile && createdPost.id) {
+      try {
+        const uploadedPost = await uploadPostImage(createdPost.id, userId, imageFile);
+        return uploadedPost;
+      } catch (uploadErr) {
+        console.error('Image upload failed, returning post without image:', uploadErr);
+        return createdPost;
+      }
     }
-
-    // Attempt to parse JSON response; if none, return the original post
-    const data = await res.json().catch(() => null);
-    return data || post;
+    
+    return createdPost;
   } catch (err) {
+    console.error('Error creating post:', err.response?.data || err.message);
     // Network or server error — use localStorage as a fallback mock
     try {
       const existing = JSON.parse(localStorage.getItem('posts') || '[]');
@@ -28,6 +43,30 @@ export async function submitPost(post) {
       console.warn('submitPost fallback failed', e);
     }
     return post;
+  }
+}
+
+// uploadPostImage: uploads an image to an existing post
+export async function uploadPostImage(postId, userId, imageFile) {
+  try {
+    const formData = new FormData();
+    formData.append('file', imageFile);
+    
+    const response = await axios.post(
+      `${POSTS_ENDPOINT}/${postId}/image`,
+      formData,
+      {
+        headers: {
+          'userId': userId,
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
+    
+    return response.data;
+  } catch (err) {
+    console.error('Error uploading image:', err.response?.data || err.message);
+    throw err;
   }
 }
 
@@ -86,3 +125,40 @@ export async function deletePost(id) {
 }
 
 export default { submitPost, updatePost, deletePost };
+
+// Fetch list of posts. Tries network, falls back to localStorage.
+export async function fetchPosts() {
+  const url = POSTS_ENDPOINT;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`API error ${res.status}`);
+    const data = await res.json().catch(() => []);
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    try {
+      return JSON.parse(localStorage.getItem('posts') || '[]');
+    } catch (e) {
+      console.warn('fetchPosts fallback failed', e);
+      return [];
+    }
+  }
+}
+
+// Fetch single post by id. Tries network, falls back to localStorage.
+export async function fetchPost(id) {
+  const url = `${POSTS_ENDPOINT.replace(/\/$/, '')}/${encodeURIComponent(id)}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`API error ${res.status}`);
+    const data = await res.json().catch(() => null);
+    return data;
+  } catch (err) {
+    try {
+      const existing = JSON.parse(localStorage.getItem('posts') || '[]');
+      return existing.find(p => p.id === id) || null;
+    } catch (e) {
+      console.warn('fetchPost fallback failed', e);
+      return null;
+    }
+  }
+}
