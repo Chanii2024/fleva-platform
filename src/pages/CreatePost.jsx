@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPost, validatePost } from '../models/Post';
-import { submitPost, updatePost, deletePost } from '../services/PostService';
+import { submitPost, updatePost, deletePost, uploadPostImage, getPostImageUrl } from '../services/PostService';
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Box,
@@ -18,9 +18,13 @@ import {
   Radio,
   Divider,
   Alert,
+  IconButton,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import DeleteIcon from '@mui/icons-material/Delete';
+import ImageIcon from '@mui/icons-material/Image';
 
 export default function CreatePost() {
   const navigate = useNavigate();
@@ -32,6 +36,9 @@ export default function CreatePost() {
   });
   const [errors, setErrors] = useState({});
   const [showSuccess, setShowSuccess] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const fileInputRef = useRef(null);
 
   const tags = ['Academic', 'Facilities', 'Canteen', 'IT', 'Campus Life', 'Events', 'Other'];
   const location = useLocation();
@@ -42,10 +49,15 @@ export default function CreatePost() {
     if (isEditing && editingPost) {
       setFormData({
         title: editingPost.title || '',
-        body: editingPost.body || '',
-        tag: editingPost.tag || 'Academic',
+        body: editingPost.content || editingPost.body || '',
+        tag: (editingPost.tags && editingPost.tags[0]) || editingPost.tag || 'Academic',
         anonymous: editingPost.anonymous !== undefined ? editingPost.anonymous : true,
       });
+      
+      // Set image preview if post has an image
+      if (editingPost.imageUrl) {
+        setImagePreview(getPostImageUrl(editingPost.id));
+      }
     }
   }, [isEditing, editingPost]);
 
@@ -63,14 +75,55 @@ export default function CreatePost() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setErrors(prev => ({ ...prev, image: 'Please select an image file' }));
+        return;
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors(prev => ({ ...prev, image: 'Image must be less than 5MB' }));
+        return;
+      }
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+      setErrors(prev => ({ ...prev, image: '' }));
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     if (isEditing && editingPost) {
-      const updated = { ...editingPost, ...formData, updatedAt: new Date().toISOString() };
+      // Update existing post
+      const updated = {
+        title: formData.title,
+        content: formData.body,
+        community: editingPost.community || 'General',
+        tags: [formData.tag],
+        anonymous: formData.anonymous
+      };
+      
       try {
-        await updatePost(editingPost.id, updated);
+        const userId = localStorage.getItem('userId') || 'anonymous-user';
+        await updatePost(editingPost.id, updated, userId);
+        
+        // Upload new image if one was selected
+        if (imageFile) {
+          await uploadPostImage(editingPost.id, userId, imageFile);
+        }
       } catch (err) {
         console.warn('updatePost failed', err);
       }
@@ -81,7 +134,9 @@ export default function CreatePost() {
 
     const post = createPost(formData);
     try {
-      await submitPost(post);
+      // Get userId from localStorage or your auth system
+      const userId = localStorage.getItem('userId') || 'anonymous-user';
+      await submitPost(post, userId, imageFile);
     } catch (err) {
       console.warn('submitPost failed', err);
     }
@@ -199,6 +254,91 @@ export default function CreatePost() {
                 }
               }}
             />
+          </Box>
+
+          {/* Image Upload */}
+          <Box sx={{ mb: 4 }}>
+            <Typography 
+              variant="subtitle1" 
+              sx={{ fontWeight: 700, color: '#1f2937', mb: 1.5 }}
+            >
+              Attach Image (Optional)
+            </Typography>
+            
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+              id="image-upload"
+            />
+            
+            {!imagePreview ? (
+              <Box
+                component="label"
+                htmlFor="image-upload"
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  p: 4,
+                  border: '2px dashed #e5e7eb',
+                  borderRadius: '12px',
+                  bgcolor: '#fafafa',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    borderColor: '#00c4cc',
+                    bgcolor: 'rgba(0, 196, 204, 0.05)'
+                  }
+                }}
+              >
+                <CloudUploadIcon sx={{ fontSize: 48, color: '#9ca3af', mb: 1 }} />
+                <Typography variant="body1" sx={{ fontWeight: 600, color: '#4b5563' }}>
+                  Click to upload an image
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#9ca3af', mt: 0.5 }}>
+                  PNG, JPG, GIF up to 5MB
+                </Typography>
+              </Box>
+            ) : (
+              <Box sx={{ position: 'relative', display: 'inline-block' }}>
+                <Box
+                  component="img"
+                  src={imagePreview}
+                  alt="Preview"
+                  sx={{
+                    maxWidth: '100%',
+                    maxHeight: 300,
+                    borderRadius: '12px',
+                    border: '1px solid #e5e7eb'
+                  }}
+                />
+                <IconButton
+                  onClick={handleRemoveImage}
+                  sx={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    bgcolor: 'rgba(239, 68, 68, 0.9)',
+                    color: '#fff',
+                    '&:hover': {
+                      bgcolor: '#ef4444'
+                    }
+                  }}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </Box>
+            )}
+            
+            {errors.image && (
+              <Typography variant="body2" sx={{ color: '#ef4444', mt: 1 }}>
+                {errors.image}
+              </Typography>
+            )}
           </Box>
 
           {/* Tag Selection */}

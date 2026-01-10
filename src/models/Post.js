@@ -1,18 +1,15 @@
 // Minimal Post model and helpers for the frontend
 // Returns a normalized post object suitable for storage or API submission
 
-export function createPost({ title, body, tag = 'Other', anonymous = true }) {
+export function createPost({ title, body, tag = 'Other', anonymous = true, community = 'General' }) {
   const now = new Date();
   return {
     id: `post_${now.getTime()}`,
     title: title.trim(),
-    body: body.trim(),
-    tag,
+    content: body.trim(),
+    community,
+    tags: tag ? [tag] : [],
     anonymous: !!anonymous,
-    status: 'New',
-    replies: 0,
-    priority: 'Low',
-    reportedFrom: 'Community',
     createdAt: now.toISOString(),
   };
 }

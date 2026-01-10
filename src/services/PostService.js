@@ -1,6 +1,11 @@
 import axios from 'axios';
 import API_BASE, { POSTS_ENDPOINT } from './config';
 
+// Get the image URL for a post by ID
+export function getPostImageUrl(postId) {
+  return `${POSTS_ENDPOINT}/${postId}/image`;
+}
+
 // submitPost: creates a post and optionally uploads an image
 // Requires userId header for backend authentication
 export async function submitPost(post, userId, imageFile = null) {
@@ -72,12 +77,15 @@ export async function uploadPostImage(postId, userId, imageFile) {
 
 
 // Update an existing post by id. Falls back to localStorage when network fails.
-export async function updatePost(id, updated) {
+export async function updatePost(id, updated, userId) {
   const url = `${POSTS_ENDPOINT.replace(/\/$/, '')}/${encodeURIComponent(id)}`;
   try {
     const res = await fetch(url, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'userId': userId || 'anonymous-user'
+      },
       body: JSON.stringify(updated),
     });
     if (!res.ok) {
@@ -87,6 +95,7 @@ export async function updatePost(id, updated) {
     const data = await res.json().catch(() => null);
     return data || updated;
   } catch (err) {
+    console.error('Error updating post:', err.message);
     // Fallback: update post in localStorage
     try {
       const existing = JSON.parse(localStorage.getItem('posts') || '[]');
@@ -103,16 +112,22 @@ export async function updatePost(id, updated) {
 }
 
 // Delete a post by id. Falls back to localStorage when network fails.
-export async function deletePost(id) {
+export async function deletePost(id, userId) {
   const url = `${POSTS_ENDPOINT.replace(/\/$/, '')}/${encodeURIComponent(id)}`;
   try {
-    const res = await fetch(url, { method: 'DELETE' });
+    const res = await fetch(url, { 
+      method: 'DELETE',
+      headers: {
+        'userId': userId || 'anonymous-user'
+      }
+    });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       throw new Error(`API error ${res.status}: ${text}`);
     }
     return true;
   } catch (err) {
+    console.error('Error deleting post:', err.message);
     try {
       const existing = JSON.parse(localStorage.getItem('posts') || '[]');
       const filtered = existing.filter(p => p.id !== id);
@@ -120,7 +135,7 @@ export async function deletePost(id) {
     } catch (e) {
       console.warn('deletePost fallback failed', e);
     }
-    return true;
+    throw err; // Re-throw so caller knows it failed
   }
 }
 

@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import {
   Box,
@@ -7,61 +8,73 @@ import {
   Paper,
   Chip,
   Grid,
-  Stack
+  Stack,
+  CircularProgress,
 } from '@mui/material';
+import ThumbUpOutlinedIcon from '@mui/icons-material/ThumbUpOutlined';
+import ThumbDownOutlinedIcon from '@mui/icons-material/ThumbDownOutlined';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import ImageIcon from '@mui/icons-material/Image';
+import { fetchPosts } from '../services/PostService';
 
 export default function AnonymousPosts() {
-  const posts = [
-    {
-      id: 1,
-      title: "WiFi down in Block B again?",
-      body: "It's been slow for 2 days. Anyone else having issues?",
-      tag: "Facilities",
-      replies: 14,
-      status: "Being Discussed",
-      time: "2 hours ago",
-    },
-    {
-      id: 2,
-      title: "Exam timetable release delay",
-      body: "Semester 2 exam dates still not updated by admin.",
-      tag: "Academic",
-      replies: 9,
-      status: "Forwarded to Problem Hub",
-      time: "5 hours ago",
-    },
-    {
-      id: 3,
-      title: "Canteen food prices increasing?",
-      body: "Rice plate from 120 → 160. Any official update?",
-      tag: "Canteen",
-      replies: 6,
-      status: "New",
-      time: "1 day ago",
-    },
-  ];
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('Newest');
 
-  const getStatusStyles = (status) => {
-    switch (status) {
-      case "Forwarded to Problem Hub":
-        return {
-          color: '#00c4cc',
-          bgcolor: 'rgba(0, 196, 204, 0.1)',
-          borderColor: 'rgba(0, 196, 204, 0.2)'
-        };
-      case "Being Discussed":
-        return {
-          color: '#f59e0b',
-          bgcolor: 'rgba(245, 158, 11, 0.1)',
-          borderColor: 'rgba(245, 158, 11, 0.2)'
-        };
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    fetchPosts().then(data => {
+      if (mounted) {
+        setPosts(data);
+        setLoading(false);
+      }
+    }).catch(() => {
+      if (mounted) setLoading(false);
+    });
+    return () => { mounted = false; };
+  }, []);
+
+  // Sort posts based on filter
+  const sortedPosts = [...posts].sort((a, b) => {
+    switch (filter) {
+      case 'Trending':
+        return ((b.upvotes || 0) - (b.downvotes || 0)) - ((a.upvotes || 0) - (a.downvotes || 0));
+      case 'Most Upvoted':
+        return (b.upvotes || 0) - (a.upvotes || 0);
+      case 'Newest':
       default:
-        return {
-          color: '#6b7280',
-          bgcolor: 'rgba(107, 114, 128, 0.1)',
-          borderColor: 'rgba(107, 114, 128, 0.2)'
-        };
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
     }
+  });
+
+  const formatTimeAgo = (dateString) => {
+    if (!dateString) return 'Just now';
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
+
+  const getTagColor = (tag) => {
+    const colors = {
+      'Academic': { bg: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' },
+      'Facilities': { bg: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' },
+      'Canteen': { bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' },
+      'IT': { bg: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6' },
+      'Campus Life': { bg: 'rgba(16, 185, 129, 0.1)', color: '#10b981' },
+      'Events': { bg: 'rgba(236, 72, 153, 0.1)', color: '#ec4899' },
+    };
+    return colors[tag] || { bg: 'rgba(107, 114, 128, 0.1)', color: '#6b7280' };
   };
 
   return (
@@ -86,26 +99,27 @@ export default function AnonymousPosts() {
 
         {/* Filter Buttons */}
         <Stack direction="row" spacing={1.5} sx={{ mb: 6, flexWrap: 'wrap', gap: 1.5 }}>
-          {["Trending", "Newest", "Most Replies", "Recently Resolved"].map((filter) => (
+          {["Newest", "Trending", "Most Upvoted"].map((f) => (
             <Button
-              key={filter}
+              key={f}
               variant="outlined"
+              onClick={() => setFilter(f)}
               sx={{
-                bgcolor: 'rgba(255, 255, 255, 0.8)',
-                color: '#4b5563',
-                borderColor: '#e5e7eb',
+                bgcolor: filter === f ? '#00c4cc' : 'rgba(255, 255, 255, 0.8)',
+                color: filter === f ? '#fff' : '#4b5563',
+                borderColor: filter === f ? '#00c4cc' : '#e5e7eb',
                 textTransform: 'none',
                 borderRadius: '12px',
                 fontWeight: 600,
                 px: 2.5,
                 '&:hover': {
                   borderColor: '#00c4cc',
-                  color: '#00c4cc',
-                  bgcolor: '#fff'
+                  color: filter === f ? '#fff' : '#00c4cc',
+                  bgcolor: filter === f ? '#00b3bb' : '#fff'
                 }
               }}
             >
-              {filter}
+              {f}
             </Button>
           ))}
         </Stack>
@@ -147,92 +161,120 @@ export default function AnonymousPosts() {
         </Paper>
 
         {/* Posts List */}
-        <Stack spacing={3} sx={{ mb: 8 }}>
-          {posts.map((post) => (
-            <Paper
-              key={post.id}
-              elevation={0}
-              sx={{
-                p: 3,
-                borderRadius: '20px',
-                border: '1px solid #f3f4f6',
-                bgcolor: '#ffffff',
-                transition: 'all 0.2s ease-in-out',
-                '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 12px 30px -10px rgba(0,0,0,0.08)',
-                  borderColor: '#e5e7eb'
-                }
-              }}
-            >
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
-                <Typography
-                  variant="h6"
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+            <CircularProgress sx={{ color: '#00c4cc' }} />
+          </Box>
+        ) : sortedPosts.length === 0 ? (
+          <Paper elevation={0} sx={{ p: 6, borderRadius: '20px', textAlign: 'center', bgcolor: '#fff' }}>
+            <Typography variant="h6" sx={{ color: '#6b7280', mb: 1 }}>No posts yet</Typography>
+            <Typography variant="body2" sx={{ color: '#9ca3af' }}>Be the first to share something!</Typography>
+          </Paper>
+        ) : (
+          <Stack spacing={2} sx={{ mb: 8 }}>
+            {sortedPosts.map((post) => {
+              const tagStyle = getTagColor(post.tags?.[0] || 'Other');
+              return (
+                <Paper
+                  key={post.id}
                   component={RouterLink}
                   to={`/posts/${post.id}`}
+                  elevation={0}
                   sx={{
-                    fontWeight: 700,
-                    color: '#1f2937',
-                    fontSize: '1.1rem',
+                    p: 2.5,
+                    borderRadius: '16px',
+                    border: '1px solid #f3f4f6',
+                    bgcolor: '#ffffff',
                     textDecoration: 'none',
-                    '&:hover': { color: '#00c4cc' }
+                    display: 'block',
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 12px 30px -10px rgba(0,0,0,0.08)',
+                      borderColor: '#00c4cc'
+                    }
                   }}
                 >
-                  {post.title}
-                </Typography>
-                <Chip
-                  label={post.tag}
-                  size="small"
-                  sx={{
-                    bgcolor: 'rgba(0, 196, 204, 0.08)',
-                    color: '#00c4cc',
-                    fontWeight: 600,
-                    borderRadius: '8px',
-                    height: '24px'
-                  }}
-                />
-              </Box>
-              <Typography variant="body2" sx={{ color: '#4b5563', mb: 3, lineHeight: 1.6 }}>{post.body}</Typography>
+                  {/* Header Row: Title + Tag + Image indicator */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 700,
+                        color: '#1f2937',
+                        fontSize: '1rem',
+                        flex: 1,
+                        mr: 2,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {post.title}
+                    </Typography>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      {post.imageUrl && (
+                        <ImageIcon sx={{ color: '#9ca3af', fontSize: '1.2rem' }} />
+                      )}
+                      <Chip
+                        label={post.tags?.[0] || 'Other'}
+                        size="small"
+                        sx={{
+                          bgcolor: tagStyle.bg,
+                          color: tagStyle.color,
+                          fontWeight: 600,
+                          borderRadius: '8px',
+                          height: '24px',
+                          fontSize: '0.75rem'
+                        }}
+                      />
+                    </Stack>
+                  </Box>
 
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 500 }}>
-                  {post.replies} replies · {post.time}
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                  <Chip
-                    label={post.status}
-                    variant="outlined"
-                    size="small"
-                    sx={{
-                      ...getStatusStyles(post.status),
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      borderRadius: '8px',
-                      borderWidth: '1px'
-                    }}
-                  />
-                  <Button
-                    component={RouterLink}
-                    to="/posts/create"
-                    state={{ post }}
-                    size="small"
-                    sx={{ textTransform: 'none', fontWeight: 700, ml: 1 }}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    component={RouterLink}
-                    to={`/posts/${post.id}`}
-                    size="small"
-                    sx={{ textTransform: 'none', fontWeight: 700, ml: 0 }}
-                  >
-                    View
-                  </Button>
-                </Box>
-              </Box>
-            </Paper>
-          ))}
-        </Stack>
+                  {/* Footer Row: Time + Votes + Anonymous indicator */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <AccessTimeIcon sx={{ color: '#9ca3af', fontSize: '0.9rem' }} />
+                        <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 500 }}>
+                          {formatTimeAgo(post.createdAt)}
+                        </Typography>
+                      </Stack>
+                      {post.anonymous && !post.identityRevealed && (
+                        <Chip
+                          label="Anonymous"
+                          size="small"
+                          sx={{
+                            bgcolor: 'rgba(107, 114, 128, 0.1)',
+                            color: '#6b7280',
+                            fontWeight: 500,
+                            borderRadius: '6px',
+                            height: '20px',
+                            fontSize: '0.7rem'
+                          }}
+                        />
+                      )}
+                    </Stack>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <ThumbUpOutlinedIcon sx={{ color: '#10b981', fontSize: '1rem' }} />
+                        <Typography variant="caption" sx={{ color: '#10b981', fontWeight: 600 }}>
+                          {post.upvotes || 0}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <ThumbDownOutlinedIcon sx={{ color: '#ef4444', fontSize: '1rem' }} />
+                        <Typography variant="caption" sx={{ color: '#ef4444', fontWeight: 600 }}>
+                          {post.downvotes || 0}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                  </Box>
+                </Paper>
+              );
+            })}
+          </Stack>
+        )}
 
         {/* Info Panels */}
         <Grid container spacing={4}>
